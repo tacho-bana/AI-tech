@@ -3,12 +3,18 @@ import numpy as np
 import scipy.io.wavfile as wavfile
 import csv
 import io
+import nltk
+import jaconv
+import re
+
+# NLTKデータのダウンロード
+nltk.download('punkt')
 
 app = Flask(__name__)
 
 def load_morse_code_dict(filename):
     morse_code_dict = {}
-    with open(filename, mode='r') as file:
+    with open(filename, mode='r', encoding='utf-8') as file:
         csv_reader = csv.DictReader(file)
         for row in csv_reader:
             character = row['Character'].strip()
@@ -16,14 +22,25 @@ def load_morse_code_dict(filename):
             morse_code_dict[character] = morse_code
     return morse_code_dict
 
-def to_morse_code(text, morse_code_dict):
-    text = text.upper()
+def to_morse_code(text, morse_code_dict, language='english'):
     morse_code = ''
-    for char in text:
-        if char in morse_code_dict:
-            morse_code += morse_code_dict[char] + ' '
-        else:
-            morse_code += '? '  # 未定義の文字は「?」とします。
+    if language == 'japanese':
+        # 日本語のトークン化を行い、カタカナに変換
+        tokens = re.findall(r'[ぁ-んァ-ン一-龥々ー]', text)
+        katakana_text = ''.join([jaconv.hira2kata(token) for token in tokens])
+        for char in katakana_text:
+            if char in morse_code_dict:
+                morse_code += morse_code_dict[char] + '・' * 3
+            else:
+                morse_code += '? ' + '・' * 3  # 未定義の文字は「?」とします。
+        morse_code = morse_code.strip('・') + '・' * 7  # 単語間のスペース
+    else:
+        text = text.upper()
+        for char in text:
+            if char in morse_code_dict:
+                morse_code += morse_code_dict[char] + ' '
+            else:
+                morse_code += '? '  # 未定義の文字は「?」とします。
     return morse_code.strip()
 
 def generate_morse_audio(morse_code, dot_duration=0.1, dash_duration=0.3, frequency=800.0, sample_rate=44100):
@@ -51,13 +68,13 @@ def index():
 @app.route('/generate_sound', methods=['POST'])
 def generate_sound():
     input_text = request.form['input_text']
+    language = request.form['language']
     morse_code_dict = load_morse_code_dict('morse_code.csv')
-    morse_code = to_morse_code(input_text, morse_code_dict)
+    morse_code = to_morse_code(input_text, morse_code_dict, language)
     print(f"モールス信号: {morse_code}")
     audio_file = generate_morse_audio(morse_code)
     return send_file(audio_file, mimetype='audio/wav')
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
