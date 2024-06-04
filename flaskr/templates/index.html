@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>モールス信号変換器</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>モールス信号変換器</h1>
+    <form id="morseForm">
+        <label for="input_text">文字列を入力してください:</label>
+        <input type="text" id="input_text" name="input_text">
+        <input type="submit" value="変換して音声を生成">
+    </form>
+    <br>
+    <audio id="morseAudio" controls style="display: none;"></audio>
+    
+    <script>
+        $('#morseForm').submit(function(event) {
+            event.preventDefault();
+            var formData = $(this).serialize();
+            $.ajax({
+                url: '/generate_sound',
+                type: 'POST',
+                data: formData,
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function(data) {
+                    var url = window.URL.createObjectURL(data);
+                    $('#morseAudio').attr('src', url);
+                    $('#morseAudio').show();
+                    $('#morseAudio')[0].play();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
